@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <math.h>
+#include <ctime>
 
 // This is a program to perform a relatively simple SPH fluid particle simulation
 // in a Parallelized manner. This problem simulates the dropping of a block of fluid
@@ -8,7 +9,11 @@
 
 using namespace std;
 
-double kernelCalc(double x1, double y1, double x2, double y2, double rad){
+double kernelCalc(int i, int j, double x1, double y1, double x2, double y2, double rad){
+
+  if (i == j){
+    return (4.0/3.14159/pow(rad,2));
+  }
   double dist = (sqrt(pow(x1-x2,2)+pow(y1-y2,2)))/rad;
 
   if (dist < 1.0){
@@ -60,17 +65,20 @@ double SecondOrderKernelCalcY(double x1, double y1, double x2, double y2, double
 
 int main(int argc, char **argv){
 
+// Seed the random number generator but only change seed once a day so we can compare runs
+srand(int(time(0))/86400);
+
 // Open up a file to which we can output data
-string file_name = "jacobi_" + to_string(rank) + ".txt";
+string file_name = "results.txt";
 ofstream fp(file_name);
 
 // Initialize parameters of the problem which can be defined by the user
-int N = 900; // Number of particles
-int mass = 1; // Initial guess for mass (will be updated later)
-double radInfluence = 1; // Radius of Influence of each particle
+int N = 10; // Number of particles
+double mass = 1; // Initial guess for mass (will be updated later)
+double radInfluence = .01; // Radius of Influence of each particle
 double restingDensity = 1000; // Resting density of the fluid
 double T = 1; // Total time of simulation
-double dt = 0.01; // Time step
+double dt = 0.0001; // Time step
 double pressureConstant = 2000; // Pressure constant
 double viscConstant = 1.0; // Viscosity Constant
 double gravConstant = 9.8; // Gravitational Constant
@@ -104,6 +112,11 @@ printf("dx = %f\n",dx);
 for (int i = 0;i < N; ++i){
   x[i] = ((i%linearN)/(double)(linearN-1)*0.5)+0.25;
   y[i] = ((i/linearN)/(double)(linearN-1)*0.5)+0.25;
+
+  // Insert some randomness to ensure that the particles don't just bounce on top of each other
+  double randFactor = ((rand()/double(RAND_MAX)) - 0.5)*dx;
+  x[i] += randFactor;
+  y[i] += randFactor;
 }
 
 // Initialize the velocities as stationary
@@ -117,9 +130,11 @@ double densityContribution;
 for (int i = 0; i < N; ++i){
   densityContribution = 0.0;
   for (int j = 0; j < N; ++j){
-    densityContribution += mass*kernelCalc(x[i],y[i],x[j],y[j],radInfluence);
+    densityContribution += mass*kernelCalc(i,j,x[i],y[i],x[j],y[j],radInfluence);
   }
   density[i] = densityContribution;
+
+  printf("Density of Particle %i = %f\n",i,density[i]);
 }
 
 // Now recalculate the mass, assuming mass is spread evenly among all particles
@@ -129,25 +144,45 @@ for (int i = 0; i < N; ++i){
 }
 mass = ((double)N*restingDensity)/densitySum;
 
+printf("Mass before Loop = %f\n",mass);
+
 // Counter for the current timestep of the simulation
 double currentTime = 0.0;
 
 while (currentTime <= T){
 
-  printf("%f \n",currentTime);
+  printf("New TimeStep at %f\n",currentTime);
+  printf("Mass in Loop = %f\n",mass);
+
+  // DEBUG USE only
+  /*printf("BEG OF LOOP X\n");
+  for (int i = 0; i < N; ++i){
+    printf("%f ",x[i]);
+  }
+  printf("\n");*/
+
 
   // Perform the density calculation
   for (int i = 0; i < N; ++i){
     densityContribution = 0.0;
     for (int j = 0; j < N; ++j){
-      densityContribution += mass*kernelCalc(x[i],y[i],x[j],y[j],radInfluence);
+      densityContribution = densityContribution + mass*kernelCalc(i,j,x[i],y[i],x[j],y[j],radInfluence);
+      //printf("Density Contribution = %f with mass = %f and %i,%i\n",densityContribution,mass,i,j);
+      //printf("     xi=%f,yi=%f,xj=%f,yj=%f\n",x[i],y[i],x[j],y[j]);
+      //printf("     Returned kernel val = %f\n",kernelCalc(i,j,x[i],y[i],x[j],y[j],radInfluence));
     }
     density[i] = densityContribution;
+    //printf("Density of Particle %i = %f\n",i,density[i]);
   }
 
   // Perform the Pressure calculation
   for (int i = 0; i < N; ++i){
     pressure[i] = pressureConstant*(density[i] - restingDensity);
+  }
+
+  // DEBUG USE only
+  for (int i = 0; i < N; ++i){
+    printf("%f ",x[i]);
   }
 
   // Perform the Pressure force Calculation
@@ -157,8 +192,18 @@ while (currentTime <= T){
     pressureContributionX = 0.0;
     pressureContributionY = 0.0;
     for (int j = 0; j < N; ++j){
-      pressureContributionX += (mass/density[j])*(pressure[i]+pressure[j])*(1/2)*FirstOrderKernelCalcX(x[i],y[i],x[j],y[j],radInfluence);
-      pressureContributionY += (mass/density[j])*(pressure[i]+pressure[j])*(1/2)*FirstOrderKernelCalcX(x[i],y[i],x[j],y[j],radInfluence);
+      if (i != j){
+        pressureContributionX += (mass/density[j])*(pressure[i]+pressure[j])*(1/2)*FirstOrderKernelCalcX(x[i],y[i],x[j],y[j],radInfluence);
+        pressureContributionY += (mass/density[j])*(pressure[i]+pressure[j])*(1/2)*FirstOrderKernelCalcX(x[i],y[i],x[j],y[j],radInfluence);
+
+        printf("densityj = %f, pressurei = %f, pressurej = %f, kernel = %f, at %i,%i\n",density[j],pressure[i],pressure[j],FirstOrderKernelCalcX(x[i],y[i],x[j],y[j],radInfluence),i,j);
+        printf("Using x1=%f,y1=%f,x2=%f,y2=%f\n",x[i],y[i],x[j],y[j]);
+
+        if (isnan(pressureContributionX)){
+          printf("ISNAN Pressure Contribution found at %i,%i \n",i,j);
+          return 1;
+        }
+      }
     }
     pressureX[i] = -1.0*pressureContributionX;
     pressureY[i] = -1.0*pressureContributionY;
@@ -171,8 +216,10 @@ while (currentTime <= T){
     viscousContributionX = 0.0;
     viscousContributionY = 0.0;
     for (int j = 0; j < N; ++j){
-      viscousContributionX += (mass/density[j])*SecondOrderKernelCalcX(x[i],y[i],x[j],y[j],u[i],u[j],radInfluence);
-      viscousContributionY += (mass/density[j])*SecondOrderKernelCalcY(x[i],y[i],x[j],y[j],v[i],v[j],radInfluence);
+      if (i != j){
+        viscousContributionX += (mass/density[j])*SecondOrderKernelCalcX(x[i],y[i],x[j],y[j],u[i],u[j],radInfluence);
+        viscousContributionY += (mass/density[j])*SecondOrderKernelCalcY(x[i],y[i],x[j],y[j],v[i],v[j],radInfluence);
+      }
     }
     viscosityX[i] = -1.0*viscConstant*viscousContributionX;
     viscosityY[i] = -1.0*viscConstant*viscousContributionY;
@@ -187,13 +234,25 @@ while (currentTime <= T){
   for (int i = 0; i < N; ++i){
     u[i] += (pressureX[i]+viscosityX[i])*dt/density[i];
     v[i] += (pressureY[i]+viscosityY[i]+gravY[i])*dt/density[i];
+
+    printf("u = %f\n",u[i]);
+    printf("v = %f\n",v[i]);
   }
 
   // Update the position of each particle
   for (int i = 0; i < N; ++i){
     x[i] += u[i]*dt;
-    y[i] += v[i];
+    y[i] += v[i]*dt;
+    printf("x = %f\n",x[i]);
+    printf("y = %f\n",y[i]);
   }
+
+  // DEBUG USE only
+  printf("END OF LOOP X\n");
+  for (int i = 0; i < N; ++i){
+    printf("%f ",x[i]);
+  }
+  printf("\n");
 
   // Check for the boundary Conditions
   for (int i = 0; i < N; ++i){
@@ -222,11 +281,23 @@ while (currentTime <= T){
     }
   }
 
+  // DEBUG USE only
+  /*printf("END OF BC X\n");
+  for (int i = 0; i < N; ++i){
+    printf("%f ",x[i]);
+  }
+  printf("\n");*/
 
 // Increment the counter
 currentTime += dt;
 
+// Output positions to file
+for (int i = 0; i < N; ++i){
+  fp << x[i] << " " << y[i] << " ";
+}
 
+// Start a new line in the output for the next time step
+fp << "\n";
 
 
 
@@ -235,7 +306,8 @@ currentTime += dt;
 
 
 
-
+// Close the file
+fp.close();
 
 
 }
