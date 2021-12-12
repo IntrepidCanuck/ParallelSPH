@@ -12,12 +12,12 @@ using namespace std;
 double kernelCalc(int i, int j, double x1, double y1, double x2, double y2, double rad){
 
   if (i == j){
-    return (4.0/3.14159/pow(rad,2));
+    return (4.0/(3.14159*pow(rad,2)));
   }
   double dist = (sqrt(pow(x1-x2,2)+pow(y1-y2,2)))/rad;
 
   if (dist < 1.0){
-    return (4.0/3.14159/pow(rad,2))*pow(1-pow(dist,2),3);
+    return (4.0/(3.14159*pow(rad,2)))*pow(1-pow(dist,2),3);
   } else {
     return 0.0;
   }
@@ -27,7 +27,7 @@ double FirstOrderKernelCalcX(double x1, double y1, double x2, double y2, double 
   double dist = (sqrt(pow(x1-x2,2)+pow(y1-y2,2)))/rad;
 
   if (dist < 1.0){
-    return (-30/3.14159/pow(rad,3))*(x1-x2)*(pow(1-dist,2)/dist);
+    return (-10/pow(rad,3))*(x1-x2)*(pow(1-dist,2)/dist);
   } else {
     return 0.0;
   }
@@ -37,7 +37,7 @@ double FirstOrderKernelCalcY(double x1, double y1, double x2, double y2, double 
   double dist = (sqrt(pow(x1-x2,2)+pow(y1-y2,2)))/rad;
 
   if (dist < 1.0){
-    return (-30/3.14159/pow(rad,3))*(y1-y2)*(pow(1-dist,2)/dist);
+    return (-10/pow(rad,3))*(y1-y2)*(pow(1-dist,2)/dist);
   } else {
     return 0.0;
   }
@@ -73,7 +73,7 @@ string file_name = "results.txt";
 ofstream fp(file_name);
 
 // Initialize parameters of the problem which can be defined by the user
-int N = 10; // Number of particles
+int N = 225; // Number of particles
 double mass = 1; // Initial guess for mass (will be updated later)
 double radInfluence = .01; // Radius of Influence of each particle
 double restingDensity = 1000; // Resting density of the fluid
@@ -88,6 +88,7 @@ double restitutionConst = 0.5; // Restitution Coeffecient
 // for simplicity
 if (ceil((double)sqrt(N)) != floor((double)sqrt(N))){
   printf("ERROR: The number of particles specified must be a perfect square.\n");
+  return 1;
 }
 
 // Define arrays to store properties of each particle at each time step
@@ -103,6 +104,11 @@ double* y = new double[N];
 double* u = new double[N]; // u and v velocity components
 double* v = new double[N];
 
+double pressureContributionX;
+double pressureContributionY;
+double viscousContributionX;
+double viscousContributionY;
+
 // Initialize the particles at the center of the domain
 int linearN = sqrt(N);
 double dx = 0.5/(double)linearN; // Calculate the spacing between each particle
@@ -110,13 +116,11 @@ printf("dx = %f\n",dx);
 // Loop through every particle and calculate the starting position of each particle within
 // the centered 0.5x0.5 box
 for (int i = 0;i < N; ++i){
-  x[i] = ((i%linearN)/(double)(linearN-1)*0.5)+0.25;
-  y[i] = ((i/linearN)/(double)(linearN-1)*0.5)+0.25;
-
   // Insert some randomness to ensure that the particles don't just bounce on top of each other
-  double randFactor = ((rand()/double(RAND_MAX)) - 0.5)*dx;
-  x[i] += randFactor;
-  y[i] += randFactor;
+  double randFactor = ((rand()/double(RAND_MAX)) - 0.5)*(0.1*radInfluence);
+
+  x[i] = (((i%linearN)/(double)(linearN-1)*0.5)+0.25)+randFactor;
+  y[i] = (((i/linearN)/(double)(linearN-1)*0.5)+0.25)+randFactor;
 }
 
 // Initialize the velocities as stationary
@@ -134,7 +138,7 @@ for (int i = 0; i < N; ++i){
   }
   density[i] = densityContribution;
 
-  printf("Density of Particle %i = %f\n",i,density[i]);
+  //printf("Density of Particle %i = %f\n",i,density[i]);
 }
 
 // Now recalculate the mass, assuming mass is spread evenly among all particles
@@ -144,15 +148,19 @@ for (int i = 0; i < N; ++i){
 }
 mass = ((double)N*restingDensity)/densitySum;
 
-printf("Mass before Loop = %f\n",mass);
+//printf("Mass before Loop = %f\n",mass);
 
 // Counter for the current timestep of the simulation
 double currentTime = 0.0;
 
 while (currentTime <= T){
 
+  /*if (currentTime%(T/20) == 0.0){
+    printf("Simulation %f \% complete \n",currentTime/(T/20));
+  }*/
+
   printf("New TimeStep at %f\n",currentTime);
-  printf("Mass in Loop = %f\n",mass);
+  //printf("Mass in Loop = %f\n",mass);
 
   // DEBUG USE only
   /*printf("BEG OF LOOP X\n");
@@ -181,37 +189,39 @@ while (currentTime <= T){
   }
 
   // DEBUG USE only
-  for (int i = 0; i < N; ++i){
+  /*for (int i = 0; i < N; ++i){
     printf("%f ",x[i]);
-  }
+  }*/
 
   // Perform the Pressure force Calculation
-  double pressureContributionX;
-  double pressureContributionY;
   for (int i = 0; i < N; ++i){
     pressureContributionX = 0.0;
     pressureContributionY = 0.0;
     for (int j = 0; j < N; ++j){
       if (i != j){
-        pressureContributionX += (mass/density[j])*(pressure[i]+pressure[j])*(1/2)*FirstOrderKernelCalcX(x[i],y[i],x[j],y[j],radInfluence);
-        pressureContributionY += (mass/density[j])*(pressure[i]+pressure[j])*(1/2)*FirstOrderKernelCalcX(x[i],y[i],x[j],y[j],radInfluence);
+        pressureContributionX += (mass/density[j])*(pressure[i]+pressure[j])*(1.0/2.0)*FirstOrderKernelCalcX(x[i],y[i],x[j],y[j],radInfluence);
+        pressureContributionY += (mass/density[j])*(pressure[i]+pressure[j])*(1.0/2.0)*FirstOrderKernelCalcY(x[i],y[i],x[j],y[j],radInfluence);
 
-        printf("densityj = %f, pressurei = %f, pressurej = %f, kernel = %f, at %i,%i\n",density[j],pressure[i],pressure[j],FirstOrderKernelCalcX(x[i],y[i],x[j],y[j],radInfluence),i,j);
+        /*printf("densityj = %f, pressurei = %f, pressurej = %f, kernel = %f, at %i,%i\n",density[j],pressure[i],pressure[j],FirstOrderKernelCalcX(x[i],y[i],x[j],y[j],radInfluence),i,j);
         printf("Using x1=%f,y1=%f,x2=%f,y2=%f\n",x[i],y[i],x[j],y[j]);
 
         if (isnan(pressureContributionX)){
           printf("ISNAN Pressure Contribution found at %i,%i \n",i,j);
           return 1;
-        }
+        }*/
       }
     }
     pressureX[i] = -1.0*pressureContributionX;
     pressureY[i] = -1.0*pressureContributionY;
+
+    /*if (pressureY[i] != 0.0){
+      printf("Pressure is not zero\n");
+    }*/
+
+    //printf("PressY = %f\n",pressureY[i]);
   }
 
   // Perform the viscous force calculations
-  double viscousContributionX;
-  double viscousContributionY;
   for (int i = 0; i < N; ++i){
     viscousContributionX = 0.0;
     viscousContributionY = 0.0;
@@ -235,24 +245,24 @@ while (currentTime <= T){
     u[i] += (pressureX[i]+viscosityX[i])*dt/density[i];
     v[i] += (pressureY[i]+viscosityY[i]+gravY[i])*dt/density[i];
 
-    printf("u = %f\n",u[i]);
-    printf("v = %f\n",v[i]);
+    //printf("u = %f\n",u[i]);
+    //printf("v = %f\n",v[i]);
   }
 
   // Update the position of each particle
   for (int i = 0; i < N; ++i){
     x[i] += u[i]*dt;
     y[i] += v[i]*dt;
-    printf("x = %f\n",x[i]);
-    printf("y = %f\n",y[i]);
+    /*printf("x = %f\n",x[i]);
+    printf("y = %f\n",y[i]);*/
   }
 
   // DEBUG USE only
-  printf("END OF LOOP X\n");
+  /*printf("END OF LOOP X\n");
   for (int i = 0; i < N; ++i){
     printf("%f ",x[i]);
   }
-  printf("\n");
+  printf("\n");*/
 
   // Check for the boundary Conditions
   for (int i = 0; i < N; ++i){

@@ -7,4 +7,4 @@ main: main.o
 	g++-11 -o main main.o 
 
 clean:
-	rm *.o main
+	rm *.o *.txt main
