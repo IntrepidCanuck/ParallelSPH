@@ -9,11 +9,12 @@ yVals = imported(:,2:2:size(imported,2));
 
 figure(1)
 hold on
-for i = 1:10:length(imported)
+for i = 1:100:length(imported)
     for j = 1:size(xVals,2)
         xlim([0 1]);
         ylim([0 1]);
-        plot(xVals(i,j), y,'ob');
+        hold on
+        plot(xVals(i,j), yVals(i,j),'ob');
     end
     pause(.1)
     clf('reset')
