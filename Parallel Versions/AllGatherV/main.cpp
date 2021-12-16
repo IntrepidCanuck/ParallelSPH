@@ -15,12 +15,14 @@ using namespace std;
 double kernelCalc(int i, int j, double x1, double y1, double x2, double y2, double rad){
 
   if (i == j){
-    return (4.0/(3.14159*pow(rad,2)));
+    //return (4.0/(3.14159*pow(rad,2)));
+    return (315.0/(64.0*3.14159*pow(rad,3)));
   }
   double dist = (sqrt(pow(x1-x2,2)+pow(y1-y2,2)))/rad;
 
   if (dist < 1.0){
-    return (4.0/(3.14159*pow(rad,2)))*pow(1-pow(dist,2),3);
+    //return (4.0/(3.14159*pow(rad,2)))*pow(1-pow(dist,2),3);
+    return (315.0/(64.0*3.14159*pow(rad,3)))*pow(1-pow(dist,2),3);
   } else {
     return 0.0;
   }
@@ -30,7 +32,8 @@ double FirstOrderKernelCalcX(double x1, double y1, double x2, double y2, double 
   double dist = (sqrt(pow(x1-x2,2)+pow(y1-y2,2)))/rad;
 
   if (dist < 1.0){
-    return (-10/pow(rad,3))*(x1-x2)*(pow(1-dist,2)/dist);
+    //return (-10/pow(rad,3))*(x1-x2)*(pow(1-dist,2)/dist);
+    return (-15/pow(rad,3)/3.14159)*(x1-x2)*(pow(1-dist,3));
   } else {
     return 0.0;
   }
@@ -40,7 +43,8 @@ double FirstOrderKernelCalcY(double x1, double y1, double x2, double y2, double 
   double dist = (sqrt(pow(x1-x2,2)+pow(y1-y2,2)))/rad;
 
   if (dist < 1.0){
-    return (-10/pow(rad,3))*(y1-y2)*(pow(1-dist,2)/dist);
+    //return (-10/pow(rad,3))*(y1-y2)*(pow(1-dist,2)/dist);
+    return (-15/pow(rad,3)/3.14159)*(y1-y2)*(pow(1-dist,3));
   } else {
     return 0.0;
   }
@@ -50,7 +54,8 @@ double SecondOrderKernelCalcX(double x1, double y1, double x2, double y2, double
   double dist = (sqrt(pow(x1-x2,2)+pow(y1-y2,2)))/rad;
 
   if (dist < 1.0){
-    return (12/pow(rad,4))*(u1 - u2)*(1-dist);
+    //return (12/pow(rad,4))*(u1 - u2)*(1-dist);
+    return (15.0/2.0/3.14159/pow(rad,3))*(-0.5*pow(dist,3) + pow(dist,2) + 0.5*dist - 1)*(u1 - u2);
   } else {
     return 0.0;
   }
@@ -60,7 +65,8 @@ double SecondOrderKernelCalcY(double x1, double y1, double x2, double y2, double
   double dist = (sqrt(pow(x1-x2,2)+pow(y1-y2,2)))/rad;
 
   if (dist < 1.0){
-    return (12/pow(rad,4))*(v1-v2)*(1-dist);
+    //return (12/pow(rad,4))*(v1-v2)*(1-dist);
+    return (15.0/2.0/3.14159/pow(rad,3))*(-0.5*pow(dist,3) + pow(dist,2) + 0.5*dist - 1)*(v1 - v2);
   } else {
     return 0.0;
   }
@@ -95,7 +101,7 @@ double radInfluence = .01; // Radius of Influence of each particle
 double restingDensity = 1000; // Resting density of the fluid
 double T = 1; // Total time of simulation
 double dt = 0.0001; // Time step
-double pressureConstant = 2000; // Pressure constant
+double pressureConstant = 100000; // Pressure constant
 double viscConstant = 1.0; // Viscosity Constant
 double gravConstant = 9.8; // Gravitational Constant
 double restitutionConst = 0.5; // Restitution Coeffecient
