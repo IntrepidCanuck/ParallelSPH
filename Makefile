@@ -7,4 +7,4 @@ simulation: simulation.o
 	mpicxx -o simulation simulation.o 
 
 clean:
-	rm *.o *.txt simulation
+	rm *.o *.txt *.png simulation

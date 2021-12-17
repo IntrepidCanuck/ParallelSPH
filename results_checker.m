@@ -3,7 +3,7 @@ clc
 close all
 
 % Set to 1 if you want to plot gif of results
-dispMovie = 0;
+dispMovie = 1;
 
 % Import and sort data from simulation
 imported = importdata("results.txt");
@@ -17,7 +17,7 @@ plotsToSave = [1 2800 4000 6400 10000];
 if (dispMovie == 1)
     figure(1)
     hold on
-    for i = 1:100:length(imported)
+    for i = 1:400:length(imported)
         for j = 1:size(xVals,2)
             xlim([0 1]);
             ylim([0 1]);
