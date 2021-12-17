@@ -122,7 +122,7 @@ int main(int argc, char **argv){
   double pressureConstant = 100000; // Pressure constant
   double viscConstant = 1.0; // Viscosity Constant
   double gravConstant = 9.8; // Gravitational Constant
-  double restitutionConst = 0.5; // Restitution Coeffecient
+  double restitutionConst = 0.5; // Restitution Coeffecient 
 
   // Do not allow the number of particles to be anything other than a perfect square
   // for simplicity
