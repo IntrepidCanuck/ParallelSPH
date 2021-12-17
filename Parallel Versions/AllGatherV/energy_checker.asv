@@ -1,0 +1,18 @@
+clear
+close all
+clc
+
+imported = importdata("results.txt");
+xVals = imported(:,1:2:size(imported,2));
+yVals = imported(:,2:2:size(imported,2));
+
+for i = 1:length(xVals)-1
+    uVals(i,:) = xVals(i+1,:) -xVals(i,:);
+    vVals(i,:) = yVals(i+1,:) -yVals(i,:);
+end
+
+totEnergy = sum(uVals.^2 + vVals.^2,2)+sum(9.8.*yVals(1:10000,:),2);
+kinEnergy = sum(uVals.^2 + vVals.^2,2);
+
+figure(1)
+plot(kinEnergy.,'linewidth'2)
