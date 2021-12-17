@@ -1,10 +1,10 @@
-default: main
+default: simulation
 
-main.o: main.cpp
-	g++-11 -c main.cpp
+simulation.o: simulation.cpp
+	mpicxx -c simulation.cpp
 
-main: main.o
-	g++-11 -o main main.o 
+simulation: simulation.o
+	mpicxx -o simulation simulation.o 
 
 clean:
-	rm *.o *.txt main
+	rm *.o *.txt simulation
